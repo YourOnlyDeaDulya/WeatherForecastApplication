@@ -38,22 +38,16 @@ TemperatureRecordsWidget::TemperatureRecordsWidget(QWidget *parent, const QVecto
     {
         *high << day.avg_t;
     }
-    //![1]
 
-    //![2]
     auto *series = new QStackedBarSeries();
     series->append(high);
-    //![2]
 
-    //![3]
     auto *chart = new QChart();
     chart->addSeries(series);
     chart->setTitle("Погода на " + QString::number(forecast_days.size()) + GetDayPronounce(forecast_days.size()));
     chart->setTitleFont(ResultWindow::CreateTextFont());
     chart->setAnimationOptions(QChart::SeriesAnimations);
-    //![3]
 
-    //![4]
     QStringList categories;
     categories.reserve(forecast_days.size());
     for(const auto& day : forecast_days)
@@ -78,14 +72,9 @@ TemperatureRecordsWidget::TemperatureRecordsWidget(QWidget *parent, const QVecto
     chart->addAxis(axisY, Qt::AlignLeft);
     series->attachAxis(axisX);
     series->attachAxis(axisY);
-    //![4]
 
-    //![5]
     chart->legend()->setVisible(true);
     chart->legend()->setAlignment(Qt::AlignBottom);
-    //![5]
 
-    //![6]
     createDefaultChartView(chart);
-    //![6]
 }

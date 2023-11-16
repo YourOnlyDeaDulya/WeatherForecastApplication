@@ -47,9 +47,9 @@ void MainWindow::showResultButtonClicked()
     bool request_succeeded = true;
     if(!CheckForInternetConnection())
     {
-        request_succeeded = LoadLastRequest(ui->comboBox->currentIndex() == 0 ?
+        request_succeeded = LoadLastRequest(ui->comboBox->currentIndex() == 0 ? //static_cast<INFO_TYPE>
                             INFO_TYPE::CURRENT : INFO_TYPE::FORECAST);
-    }
+    }//вместо else - return внутри if
     else
     {
         switch(ui->comboBox->currentIndex())
@@ -122,8 +122,8 @@ bool MainWindow::CurrentWeatherRequest()
         return false;
     }
 
-    CurrentWeather current = MakeCurrentWeather(map);
-    SaveCurrentToLocal(current);
+    CurrentWeather current = MakeCurrentWeather(map); //Заняться ренеймингом.
+    SaveCurrentToLocal(current); //Асинхронное + mutex.
     collector_.SetCurrent(std::move(current));
     results_->setAnswer(collector_);
 
@@ -190,7 +190,7 @@ bool MainWindow::ForecastWeatherRequest()
 QJsonDocument MainWindow::MakeRequest(INFO_TYPE type)
 {
     std::unique_ptr<QNetworkAccessManager> mNetManager = std::make_unique<QNetworkAccessManager>(this);
-    QString url_s = type == INFO_TYPE::CURRENT ?
+    QString url_s = type == INFO_TYPE::CURRENT ? //Словарь с АПИ?
                         "http://api.weatherapi.com/v1/current.json?key=" + API_CODE + "&q=" + ui->cityLineEdit->text() + "&aqi=no&lang=ru"
                                                :
                         "http://api.weatherapi.com/v1/forecast.json?key=" + API_CODE + "&q="
@@ -211,7 +211,7 @@ bool MainWindow::CheckForInternetConnection()
 {
     std::unique_ptr<QTcpSocket> sock = std::make_unique<QTcpSocket>(this);
     sock->connectToHost("www.google.com", 80);
-    bool connected = sock->waitForConnected(30000);//ms
+    bool connected = sock->waitForConnected(30000);
 
     if (!connected)
     {
@@ -230,7 +230,7 @@ bool MainWindow::ConnectToDataBase()
     return db_.open();
 }
 
-bool MainWindow::LoadLastRequest(INFO_TYPE type)
+bool MainWindow::LoadLastRequest(INFO_TYPE type) //Словарь запрос/метод
 {
     if(!db_.isOpen())
     {
