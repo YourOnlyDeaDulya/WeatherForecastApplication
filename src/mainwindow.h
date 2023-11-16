@@ -21,6 +21,12 @@
 #include "currentwindow.h"
 #include "forecastwindow.h"
 
+
+//Подключиться к GitHub
+//Декомпозиция + ренейминг. (По принципу ответственности - то есть "что делает")
+//QSerializer
+//При старте приложения фоново запускается проверка кэша на сохраненную дату последнего обращения (Обновляется при перезаписи)
+//НАЧАЛИ ДЕЛАЦ
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -51,6 +57,7 @@ private:
     WeatherCollector collector_;
     QSqlDatabase db_;
 
+    //Декомпозировать классы на интерфейсы и разные файлы + посмотреть Dependency Injection + Inversion of Control
     void HideDaysCountBar();
     void ShowDaysCountBar();
     bool CurrentWeatherRequest();
