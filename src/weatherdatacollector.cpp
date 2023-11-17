@@ -211,3 +211,8 @@ ForecastWeather WeatherCollector::GerForecastWeather() const
 {
      return weather_info_.value<ForecastWeather>();
 }
+
+bool WeatherCollector::IsValid() const
+{
+     return weather_info_.isValid();
+}

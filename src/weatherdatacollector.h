@@ -83,6 +83,7 @@ public:
     void SetForecast(ForecastWeather&& forect);
     CurrentWeather GetCurrentWeather() const;
     ForecastWeather GerForecastWeather() const;
+    bool IsValid() const;
 private:
     QVariant weather_info_;
 };

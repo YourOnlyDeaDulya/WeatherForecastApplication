@@ -12,8 +12,10 @@ CONFIG += c++17
 
 SOURCES += \
     additionalnfowindow.cpp \
+    apirequesthandler.cpp \
     contentwidget.cpp \
     currentwindow.cpp \
+    errormessage.cpp \
     forecastwindow.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -23,8 +25,10 @@ SOURCES += \
 
 HEADERS += \
     additionalnfowindow.h \
+    apirequesthandler.h \
     contentwidget.h \
     currentwindow.h \
+    errormessage.h \
     forecastwindow.h \
     mainwindow.h \
     resultwindow.h \

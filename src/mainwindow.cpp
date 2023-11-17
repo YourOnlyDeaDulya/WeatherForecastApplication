@@ -4,6 +4,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(std::make_unique<Ui::MainWindow>())
+    , request_handler_(std::make_unique<APIRequestModel>(this))
+    , query_constructor_(std::make_unique<APIQueryModel>())
 {
     ui->setupUi(this);
     QObject::connect(ui->showResultButton, &QPushButton::clicked,
@@ -15,14 +17,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-}
-
-void ErrorMessage(const QString& message)
-{
-    QMessageBox box;
-    box.setWindowTitle("Ошибка");
-    box.setText(message);
-    box.exec();
 }
 
 void MainWindow::on_comboBox_activated(int index)
@@ -45,38 +39,37 @@ void MainWindow::showResultButtonClicked()
     }
 
     bool request_succeeded = true;
-    if(!CheckForInternetConnection())
+    if(!request_handler_->CheckForInternetConnection(this))
     {
         request_succeeded = LoadLastRequest(ui->comboBox->currentIndex() == 0 ? //static_cast<INFO_TYPE>
                             INFO_TYPE::CURRENT : INFO_TYPE::FORECAST);
+        return;
     }//вместо else - return внутри if
-    else
+
+    std::unique_ptr<WeatherCollector> w_collector = nullptr;
+    switch(ui->comboBox->currentIndex())
     {
-        switch(ui->comboBox->currentIndex())
-        {
-        case 0:
+    case 0:
 
-            results_ = std::make_unique<CurrentWindow>(this);
-            request_succeeded = CurrentWeatherRequest();
-            break;
+        results_ = std::make_unique<CurrentWindow>(this);
+        request_succeeded = CurrentWeatherRequest();
+        break;
 
-        case 1:
+    case 1:
 
-            results_ = std::make_unique<ForecastWindow>(this);
-            request_succeeded = ForecastWeatherRequest();
-            break;
-        }
+        results_ = std::make_unique<ForecastWindow>(this);
+        request_succeeded = ForecastWeatherRequest();
+        break;
     }
 
     if(!request_succeeded)
     {
         results_.reset();
+        return;
     }
-    else
-    {
-        this->hide();
-        results_->exec();
-    }
+
+    this->hide();
+    results_->exec();
 }
 
 void MainWindow::HideDaysCountBar()
@@ -89,6 +82,30 @@ void MainWindow::ShowDaysCountBar()
 {
     ui->daysCountInput->show();
     ui->daysCountLabel->show();
+}
+
+
+bool MainWindow::MakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector)
+{
+    switch(type)
+    {
+    case INFO_TYPE::CURRENT:
+        query_constructor_->SetMainQuery(ui->cityLineEdit->text());
+        break;
+    case INFO_TYPE::FORECAST:
+        query_constructor_->SetMainQuery(ui->cityLineEdit->text());
+        query_constructor_->SetDaysQuery(ui->daysCountInput->text());
+        break;
+    }
+
+    w_collector = request_handler_->GetRequestAnswer(query_constructor_->GetQuery(type), type);
+
+    if(!w_collector.IsValid())
+    {
+        return false;
+    }
+
+    return true;
 }
 
 CurrentWeather MakeCurrentWeather(const QVariantMap& map)
@@ -110,24 +127,6 @@ CurrentWeather MakeCurrentWeather(const QVariantMap& map)
     current_weather.hourly_weather_info_.weather_condition_ = current["condition"].toJsonObject().toVariantMap()["text"].toString();
 
     return current_weather;
-}
-
-bool MainWindow::CurrentWeatherRequest()
-{
-    QVariantMap map = MakeRequest(INFO_TYPE::CURRENT).object().toVariantMap();
-
-    if(map.contains("error"))
-    {
-        ErrorMessage(map["error"].toJsonObject().toVariantMap()["message"].toString());
-        return false;
-    }
-
-    CurrentWeather current = MakeCurrentWeather(map); //Заняться ренеймингом.
-    SaveCurrentToLocal(current); //Асинхронное + mutex.
-    collector_.SetCurrent(std::move(current));
-    results_->setAnswer(collector_);
-
-    return true;
 }
 
 ForecastWeather MakeForecastWeather(const QVariantMap& map)
@@ -161,6 +160,24 @@ ForecastWeather MakeForecastWeather(const QVariantMap& map)
     }
 
     return forecast_weather;
+}
+
+bool MainWindow::CurrentWeatherRequest()
+{
+    QVariantMap map = MakeRequest(INFO_TYPE::CURRENT).object().toVariantMap();
+
+    if(map.contains("error"))
+    {
+        ErrorMessage(map["error"].toJsonObject().toVariantMap()["message"].toString());
+        return false;
+    }
+
+    CurrentWeather current = MakeCurrentWeather(map); //Заняться ренеймингом.
+    SaveCurrentToLocal(current); //Асинхронное + mutex.
+    collector_.SetCurrent(std::move(current));
+    results_->setAnswer(collector_);
+
+    return true;
 }
 
 bool MainWindow::ForecastWeatherRequest()
