@@ -21,8 +21,8 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     resultwindow.cpp \
+    sqlcachecleaner.cpp \
     sqlcachingservice.cpp \
-    sqlcahcecleaner.cpp \
     temperaturerecordswidget.cpp \
     weatherdatacollector.cpp
 
@@ -35,9 +35,10 @@ HEADERS += \
     errormessage.h \
     forecastwindow.h \
     mainwindow.h \
+    request_info_types.h \
     resultwindow.h \
+    sqlcachecleaner.h \
     sqlcachingservice.h \
-    sqlcahcecleaner.h \
     temperaturerecordswidget.h \
     weatherdatacollector.h
 

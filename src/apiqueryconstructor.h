@@ -5,12 +5,7 @@
 #include "errormessage.h"
 #include <optional>
 #include <QMap>
-
-enum INFO_TYPE
-{
-    CURRENT,
-    FORECAST,
-};
+#include "request_info_types.h"
 
 struct RequestDto
 {

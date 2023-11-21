@@ -1,0 +1,10 @@
+#ifndef REQUEST_INFO_TYPES_H
+#define REQUEST_INFO_TYPES_H
+
+enum INFO_TYPE
+{
+    CURRENT,
+    FORECAST,
+};
+
+#endif // REQUEST_INFO_TYPES_H

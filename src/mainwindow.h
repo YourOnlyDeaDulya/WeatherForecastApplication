@@ -23,6 +23,8 @@
 #include "forecastwindow.h"
 #include "errormessage.h"
 #include "apirequesthandler.h"
+#include "request_info_types.h"
+#include "sqlcachingservice.h"
 
 
 //Подключиться к GitHub - СДЕЛАНО
@@ -49,29 +51,22 @@ public:
 public slots:
     void showResultButtonClicked();
 private slots:
+
     void on_comboBox_activated(int index);
     void daysCountInput_edited(const QString &arg1);
+
 private:
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<ResultWindow> results_;
-    QSqlDatabase db_;
 
-    std::unique_ptr<APIForecastServiceInterface> request_handler_; //APIForecastService
+    std::unique_ptr<SqlCachingServiceInterface> caching_service_;
+    std::unique_ptr<APIForecastServiceInterface> api_forecast_service_; //APIForecastService
 
-    //Декомпозировать классы на интерфейсы и разные файлы + посмотреть Dependency Injection + Inversion of Control
     void HideDaysCountBar();
     void ShowDaysCountBar();
 
     bool TryMakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector); //TryMakeAPIRequest
 
-    bool ConnectToDataBase(); //DB
-    bool LoadLastRequest(INFO_TYPE type); //DB
-    void SaveCurrentToLocal(const CurrentWeather& current); //DB
-    bool LoadLastCurrentRequest(); //DB
-    void SaveForecastToLocal(const ForecastWeather& forecast); //DB
-    bool LoadLastForecastRequest(); //DB
-    void SaveForecastDays(const QVector<ForecastDay>& days); //DB
-    bool LoadForecastdays(ForecastWeather& forecast); //DB
 
     const QMap<INFO_TYPE, std::function<ResultWindow*(QWidget*)>> request_type_to_window_
     {

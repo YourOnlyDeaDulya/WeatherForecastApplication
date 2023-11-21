@@ -7,7 +7,6 @@
 #include <QRegularExpression>
 #include <QVariant>
 
-
 struct Date
 {
     int day_;

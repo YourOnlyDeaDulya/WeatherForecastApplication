@@ -10,6 +10,7 @@ AdditionalnfoWindow::AdditionalnfoWindow(QWidget *parent) :
     this->setWindowTitle("Подробная информация");
     QObject::connect(ui->closeButton, &QPushButton::clicked,
                      this, &AdditionalnfoWindow::closeButtonClicked);
+
 }
 
 AdditionalnfoWindow::~AdditionalnfoWindow()

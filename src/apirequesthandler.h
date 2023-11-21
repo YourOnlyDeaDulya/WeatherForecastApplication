@@ -12,6 +12,7 @@
 #include "weatherdatacollector.h"
 #include "errormessage.h"
 #include "apiqueryconstructor.h"
+#include "request_info_types.h"
 
 class APIForecastServiceInterface //переименовать
 {
