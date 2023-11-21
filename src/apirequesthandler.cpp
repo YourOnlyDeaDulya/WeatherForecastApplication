@@ -1,45 +1,18 @@
 #include "apirequesthandler.h"
 
-void APIQueryModel::SetMainQuery(const QString& str)
+std::unique_ptr<APIQueryConstructorInterface> APIForecastService::query_constructor_ = std::make_unique<APIQueryConstructor>();
+
+APIForecastService::APIForecastService(QObject *parent)
+    : mNetManager_(std::make_unique<QNetworkAccessManager>(parent))
 {
-    main_query_ = "&q=" + str;
 }
 
-void APIQueryModel::SetDaysQuery(const QString& str)
+WeatherCollector APIForecastService::GetRequestAnswer(const RequestDto& request, INFO_TYPE type) const
 {
-    days_query_ = "&days=" + str;
+    return request_type_to_function_[type](query_constructor_->GetQuery(type, request), mNetManager_.get());
 }
 
-
-QString APIQueryModel::GetQuery(INFO_TYPE request_type) const
-{
-    QString result_query = request_opening_.value(request_type);
-
-    const auto& methods_list = mandatory_methods_list_.value(request_type);
-    for(auto it = methods_list.begin(); it != methods_list.end(); ++it)
-    {
-        result_query += *it;
-    }
-
-    return result_query;
-}
-
-QString APIQueryModel::GetMainQuery() const
-{
-    return main_query_;
-}
-
-QString APIQueryModel::GetDaysQuery() const
-{
-    return days_query_;
-}
-
-APIRequestModel::APIRequestModel(QObject *parent) : mNetManager(std::make_unique<QNetworkAccessManager>(parent))
-{
-
-}
-
-QJsonDocument APIRequestModel::MakeRequest(const QString& query)
+QJsonDocument APIForecastService::MakeRequest(const QString& query, QNetworkAccessManager* mNetManager)
 {
     QUrl url = QUrl(query);
     QNetworkRequest req(url);
@@ -53,9 +26,9 @@ QJsonDocument APIRequestModel::MakeRequest(const QString& query)
     return QJsonDocument::fromJson(jsonString.toUtf8());
 }
 
-WeatherCollector APIRequestModel::MakeCurrentWeatherRequest(const QString& query)
+WeatherCollector APIForecastService::MakeCurrentWeatherRequest(const QString& query, QNetworkAccessManager* mNetManager)
 {
-    QVariantMap map = MakeRequest(query).object().toVariantMap();
+    QVariantMap map = MakeRequest(query, mNetManager).object().toVariantMap();
 
     if(map.contains("error"))
     {
@@ -64,20 +37,14 @@ WeatherCollector APIRequestModel::MakeCurrentWeatherRequest(const QString& query
     }
 
     WeatherCollector w_collector;
-    w_collector.SetCurrent(MakeCurrentWeather(map)); //Заняться ренеймингом.
+    w_collector.SetCurrent(MakeCurrentWeatherDto(map)); //Заняться ренеймингом.
 
     return w_collector;
 }
 
-WeatherCollector APIRequestModel::MakeForecastWeatherRequest(const QString& query)
+WeatherCollector APIForecastService::MakeForecastWeatherRequest(const QString& query, QNetworkAccessManager* mNetManager)
 {
-    /*if(ui->daysCountInput->text().toInt() < 1 || ui->daysCountInput->text().toInt() > 10)
-    {
-        ErrorMessage("Введите корректное число дней");
-        return WeatherCollector();
-    }*/
-
-    QVariantMap map = MakeRequest(query).object().toVariantMap();
+    QVariantMap map = MakeRequest(query, mNetManager).object().toVariantMap();
 
     if(map.contains("error"))
     {
@@ -86,12 +53,12 @@ WeatherCollector APIRequestModel::MakeForecastWeatherRequest(const QString& quer
     }
 
     WeatherCollector w_collector;
-    w_collector.SetForecast(MakeForecastWeather(map));
+    w_collector.SetForecast(MakeForecastWeatherDto(map));
 
     return w_collector;
 }
 
-CurrentWeather APIRequestModel::MakeCurrentWeather(const QVariantMap& map)
+CurrentWeather APIForecastService::MakeCurrentWeatherDto(const QVariantMap& map)
 {
     const QVariantMap& location = map["location"].toJsonObject().toVariantMap();
     const QVariantMap& current = map["current"].toJsonObject().toVariantMap();
@@ -112,7 +79,7 @@ CurrentWeather APIRequestModel::MakeCurrentWeather(const QVariantMap& map)
     return current_weather;
 }
 
-ForecastWeather APIRequestModel::MakeForecastWeather(const QVariantMap& map)
+ForecastWeather APIForecastService::MakeForecastWeatherDto(const QVariantMap& map)
 {
     const QVariantMap& location = map["location"].toJsonObject().toVariantMap();
     const QVariantMap& forecast = map["forecast"].toJsonObject().toVariantMap();
@@ -145,7 +112,7 @@ ForecastWeather APIRequestModel::MakeForecastWeather(const QVariantMap& map)
     return forecast_weather;
 }
 
-bool APIRequestModel::CheckForInternetConnection(QWidget *parent) const
+bool APIForecastService::CheckForInternetConnection(QWidget *parent) const
 {
     std::unique_ptr<QTcpSocket> sock = std::make_unique<QTcpSocket>(parent);
     sock->connectToHost("www.google.com", 80);

@@ -32,6 +32,8 @@
 //QSerializer
 //При старте приложения фоново запускается проверка кэша на сохраненную дату последнего обращения (Обновляется при перезаписи)
 
+
+//доделать API, переименовать классы, переделать базу данных с добавлением даты запроса и сделать класс-очиститель базы данных.
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -48,18 +50,19 @@ public slots:
     void showResultButtonClicked();
 private slots:
     void on_comboBox_activated(int index);
-    //void on_daysCountInput_editingFinished();
+    void daysCountInput_edited(const QString &arg1);
 private:
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<ResultWindow> results_;
     QSqlDatabase db_;
-    std::unique_ptr<APIRequestView> request_handler_;
-    std::unique_ptr<APIQueryView> query_constructor_;
+
+    std::unique_ptr<APIForecastServiceInterface> request_handler_; //APIForecastService
+
     //Декомпозировать классы на интерфейсы и разные файлы + посмотреть Dependency Injection + Inversion of Control
     void HideDaysCountBar();
     void ShowDaysCountBar();
 
-    bool MakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector);
+    bool TryMakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector); //TryMakeAPIRequest
 
     bool ConnectToDataBase(); //DB
     bool LoadLastRequest(INFO_TYPE type); //DB
@@ -70,13 +73,11 @@ private:
     void SaveForecastDays(const QVector<ForecastDay>& days); //DB
     bool LoadForecastdays(ForecastWeather& forecast); //DB
 
-    const QMap<INFO_TYPE, std::unique_ptr<ResultWindow>> request_type_to_window_
+    const QMap<INFO_TYPE, ResultWindow*> request_type_to_window_
     {
-        {INFO_TYPE::CURRENT, std::make_unique<CurrentWindow>(this)},
-        {INFO_TYPE::FORECAST, std::make_unique<ForecastWindow>(this)},
+        {INFO_TYPE::CURRENT, new CurrentWindow(this)},
+        {INFO_TYPE::FORECAST, new ForecastWindow(this)},
     };
-
-
 };
 
 #endif // MAINWINDOW_H

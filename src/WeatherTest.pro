@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     additionalnfowindow.cpp \
+    apiqueryconstructor.cpp \
     apirequesthandler.cpp \
     contentwidget.cpp \
     currentwindow.cpp \
@@ -20,11 +21,14 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     resultwindow.cpp \
+    sqlcachingservice.cpp \
+    sqlcahcecleaner.cpp \
     temperaturerecordswidget.cpp \
     weatherdatacollector.cpp
 
 HEADERS += \
     additionalnfowindow.h \
+    apiqueryconstructor.h \
     apirequesthandler.h \
     contentwidget.h \
     currentwindow.h \
@@ -32,6 +36,8 @@ HEADERS += \
     forecastwindow.h \
     mainwindow.h \
     resultwindow.h \
+    sqlcachingservice.h \
+    sqlcahcecleaner.h \
     temperaturerecordswidget.h \
     weatherdatacollector.h
 
