@@ -36,7 +36,7 @@ void MainWindow::showResultButtonClicked()
     bool request_succeeded = true;
     INFO_TYPE request_type = static_cast<INFO_TYPE>(ui->comboBox->currentIndex());
 
-    results_.reset(request_type_to_window_[request_type]);
+    results_.reset(request_type_to_window_[request_type](this));
 
     if(!request_handler_->CheckForInternetConnection(this))
     {

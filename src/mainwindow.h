@@ -73,10 +73,10 @@ private:
     void SaveForecastDays(const QVector<ForecastDay>& days); //DB
     bool LoadForecastdays(ForecastWeather& forecast); //DB
 
-    const QMap<INFO_TYPE, ResultWindow*> request_type_to_window_
+    const QMap<INFO_TYPE, std::function<ResultWindow*(QWidget*)>> request_type_to_window_
     {
-        {INFO_TYPE::CURRENT, new CurrentWindow(this)},
-        {INFO_TYPE::FORECAST, new ForecastWindow(this)},
+        {INFO_TYPE::CURRENT, [](QWidget* parent) { return new CurrentWindow(parent); }},
+        {INFO_TYPE::FORECAST, [](QWidget* parent) { return new ForecastWindow(parent); }},
     };
 };
 
