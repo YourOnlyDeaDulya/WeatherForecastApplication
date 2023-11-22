@@ -8,6 +8,9 @@
 #include "request_info_types.h"
 #include "errormessage.h"
 #include <QDate>
+#include <QMutex>
+#include <QMutexLocker>
+#include <future>
 
 QString GetCurrentDate();
 
@@ -34,7 +37,7 @@ private:
 
     bool TryCacheCurrent(const WeatherCollector& w_collector);
     bool TryCacheForecast(const WeatherCollector& w_collector);
-    bool TryCacheForecastDays(const QVector<ForecastDay>& days);
+    bool TryCacheForecastDays(const ForecastWeather& forecast);
 
     bool TryLoadLastForecastRequest(WeatherCollector& w_collector) const;
     bool TryLoadLastCurrentRequest(WeatherCollector& w_collector) const;
