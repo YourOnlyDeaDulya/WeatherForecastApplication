@@ -38,7 +38,7 @@ public:
     virtual bool TryCleanCache() override;
 
 private:
-    const QString db_name_ = "./../../sqlite_db/cache.db";
+    const QString db_name_ = "./../sqlite_db/cache.db";
 
     bool TryCacheCurrent(const WeatherCollector& w_collector);
     bool TryCacheForecast(const WeatherCollector& w_collector);
