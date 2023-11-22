@@ -14,7 +14,7 @@ struct RequestDto
     INFO_TYPE type_;
 };
 
-class APIQueryConstructorInterface //переименовать
+class APIQueryConstructorInterface
 {
 public:
     virtual QString GetQuery(INFO_TYPE request_type, const RequestDto& request) const = 0;

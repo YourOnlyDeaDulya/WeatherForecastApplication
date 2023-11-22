@@ -36,8 +36,6 @@ void ContentWidget::load()
 
 bool ContentWidget::doLoad()
 {
-    // Most examples do their initialization in constructor.
-    // Only those that can fail and show error message need to reimplement this method.
     return true;
 }
 
@@ -47,8 +45,6 @@ void ContentWidget::resizeEvent(QResizeEvent *)
         m_defaultChartView->resize(size());
 }
 
-// Most examples are simple and need only basic chart view widget, so provide it in this base class
-// to avoid duplicating code
 void ContentWidget::createDefaultChartView(QChart *chart)
 {
     m_defaultChartView = new QChartView(chart, this);

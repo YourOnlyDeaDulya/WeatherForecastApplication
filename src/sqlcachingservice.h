@@ -13,36 +13,32 @@
 #include <QDate>
 #include <QMutex>
 #include <QMutexLocker>
-#include <thread>
+#include <future>
 
 QString GetCurrentDate();
+static QSqlDatabase ConnectToDatabase(const QString& db_name, const QString& connection_name);
 
-class SqlCachingServiceInterface
+class CachingServiceInterface
 {
 public:
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) = 0;
     virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const = 0;
-    virtual bool TryConnectToDataBase() = 0;
     virtual QString GetDBName() const = 0;
     virtual bool TryCleanCache() = 0;
-    virtual ~SqlCachingServiceInterface() = default;
+    virtual ~CachingServiceInterface() = default;
 };
 
-class SqlCachingService : public SqlCachingServiceInterface
+class CachingService : public CachingServiceInterface
 {
 public:
-    SqlCachingService();
-
-    virtual bool TryConnectToDataBase() override; //DB
+    CachingService();
     virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const override;
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) override;
     virtual QString GetDBName() const override;
     virtual bool TryCleanCache() override;
 
 private:
-    QSqlDatabase db_;
-    QMutex mutex;
-    const QString db_name_ = "./../../sqlite_db/weather_request.db";
+    const QString db_name_ = "./../../sqlite_db/cache.db";
 
     bool TryCacheCurrent(const WeatherCollector& w_collector);
     bool TryCacheForecast(const WeatherCollector& w_collector);

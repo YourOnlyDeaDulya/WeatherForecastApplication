@@ -23,7 +23,7 @@ public:
     virtual ~APIForecastServiceInterface() = default;
 };
 
-class APIForecastService final : public APIForecastServiceInterface //подумать над названием
+class APIForecastService final : public APIForecastServiceInterface
 {
 public:
     explicit APIForecastService(QObject *parent);

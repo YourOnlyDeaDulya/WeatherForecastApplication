@@ -18,6 +18,7 @@
 #include <QDebug>
 #include <QMap>
 
+
 #include "weatherdatacollector.h"
 #include "currentwindow.h"
 #include "forecastwindow.h"
@@ -59,13 +60,13 @@ private:
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<ResultWindow> results_;
 
-    std::unique_ptr<SqlCachingServiceInterface> caching_service_;
-    std::unique_ptr<APIForecastServiceInterface> api_forecast_service_; //APIForecastService
+    std::unique_ptr<CachingServiceInterface> caching_service_;
+    std::unique_ptr<APIForecastServiceInterface> api_forecast_service_;
 
     void HideDaysCountBar();
     void ShowDaysCountBar();
 
-    bool TryMakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector); //TryMakeAPIRequest
+    bool TryMakeAPIRequest(INFO_TYPE type, WeatherCollector& w_collector);
 
 
     const QMap<INFO_TYPE, std::function<ResultWindow*(QWidget*)>> request_type_to_window_

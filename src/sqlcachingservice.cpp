@@ -11,53 +11,51 @@ QString GetCurrentDate()
     return QString::number(year) + "-" + QString::number(month) + "-" + QString::number(day);
 }
 
-SqlCachingService::SqlCachingService()
+static QSqlDatabase ConnectToDatabase(const QString& db_name, const QString& connection_name)
 {
-}
+    QSqlDatabase db;
+    db = QSqlDatabase::addDatabase("QSQLITE", connection_name);
+    db.setDatabaseName(db_name);
 
-bool SqlCachingService::TryConnectToDataBase()
-{
-    db_ = QSqlDatabase::addDatabase("QSQLITE");
-    db_.setDatabaseName(db_name_);
-    if(!db_.open())
-    {
-        return false;
+    if (!db.open()) {
+        return QSqlDatabase();
     }
 
-    QSqlQuery query(db_);
+    QSqlQuery query(db);
     if(!query.exec("PRAGMA foreign_keys = ON;"))
     {
         ErrorMessage("Не удалось установить pragma-расширение" + query.lastError().text());
     }
 
-    return true;
+    return db;
 }
 
-bool SqlCachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const
+CachingService::CachingService()
 {
-    if(!db_.isOpen())
-    {
-        ErrorMessage("Отсутствует подключение к локальной базе данных");
-        return false;
-    }
+}
 
+bool CachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const
+{
     return request_type_to_load_method_[type](w_collector, city);
 }
 
-bool SqlCachingService::TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector)
+bool CachingService::TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector)
 {
-    if(!db_.isOpen())
+    return request_type_to_cache_method_[type](w_collector);
+}
+
+bool CachingService::TryCacheCurrent(const WeatherCollector& w_collector)
+{
+    QSqlDatabase::removeDatabase("current_cache_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "current_cache_conn");
+
+    if(!db.isOpen())
     {
         ErrorMessage("Отсутствует подключение к локальной базе данных");
         return false;
     }
 
-    return request_type_to_cache_method_[type](w_collector);
-}
-
-bool SqlCachingService::TryCacheCurrent(const WeatherCollector& w_collector)
-{
-    QSqlQuery query;
+    QSqlQuery query(db);
 
     const auto current = w_collector.GetCurrentWeather();
 
@@ -92,18 +90,30 @@ bool SqlCachingService::TryCacheCurrent(const WeatherCollector& w_collector)
         return false;
     }
 
+    db.close();
     return true;
 }
 
-bool SqlCachingService::TryCacheForecast(const WeatherCollector& w_collector)
+bool CachingService::TryCacheForecast(const WeatherCollector& w_collector)
 {
+    QSqlDatabase::removeDatabase("forecast_cache_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "forecast_cache_conn");
+
+    if(!db.isOpen())
+    {
+        ErrorMessage("Отсутствует подключение к локальной базе данных");
+        return false;
+    }
+
+    QSqlQuery query(db);
+
     const auto forecast = w_collector.GerForecastWeather();
 
-    QSqlQuery query;
     if(!query.exec("DELETE FROM ForecastWeather WHERE city = '"
                     + forecast.city_ + "'"))
     {
         ErrorMessage("Не удалось очистить кэш: " + query.lastError().text());
+        db.close();
         return false;
     }
 
@@ -116,15 +126,27 @@ bool SqlCachingService::TryCacheForecast(const WeatherCollector& w_collector)
     if(!query.exec(std::move(query_text)) || !TryCacheForecastDays(forecast))
     {
         ErrorMessage("Не удалось кэшировать запрос: " + query.lastError().text());
+        db.close();
         return false;
     }
 
+    db.close();
     return true;
 }
 
-bool SqlCachingService::TryCacheForecastDays(const ForecastWeather& forecast)
+bool CachingService::TryCacheForecastDays(const ForecastWeather& forecast)
 {
-    QSqlQuery query;
+    QSqlDatabase::removeDatabase("forecast_days_cache_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "forecast_days_cache_conn");
+
+    if(!db.isOpen())
+    {
+        ErrorMessage("Отсутствует подключение к локальной базе данных");
+        return false;
+    }
+
+    QSqlQuery query(db);
+
     const auto& days = forecast.forecast_days_;
     for(const auto& day : days)
     {
@@ -144,16 +166,28 @@ bool SqlCachingService::TryCacheForecastDays(const ForecastWeather& forecast)
         if(!query.exec(std::move(query_text)))
         {
             ErrorMessage("Не удалось кэшировать запрос: " + query.lastError().text());
+            db.close();
             return false;
         }
     }
 
+    db.close();
     return true;
 }
 
-bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector, const QString& city)
+bool CachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector, const QString& city)
 {
-    QSqlQuery query;
+    QSqlDatabase::removeDatabase("current_load_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "current_load_conn");
+
+    if(!db.isOpen())
+    {
+        ErrorMessage("Отсутствует подключение к локальной базе данных");
+        return false;
+    }
+
+    QSqlQuery query(db);
+
     QString query_text = "SELECT city, country, day, month, year, hour, minute, "
                          "weather_condition, celcium_t, feels_like, is_day "
                          "FROM CurrentWeather WHERE city = '" + city + "'";
@@ -161,6 +195,7 @@ bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector,
     if(!query.exec(std::move(query_text)))
     {
         ErrorMessage("Не удалось загрузить последний запрос: " + query.lastError().text());
+        db.close();
         return false;
     }
 
@@ -176,6 +211,7 @@ bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector,
         if(!query.next())
         {
             ErrorMessage("Локальные данные отсутствуют");
+            db.close();
             return false;
         }
     }
@@ -210,17 +246,28 @@ bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector,
         w_collector.SetCurrent(std::move(current));
     }
 
+    db.close();
     return true;
 }
 
-bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector, const QString& city)
+bool CachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector, const QString& city)
 {
-    QSqlQuery query;
+    QSqlDatabase::removeDatabase("forecast_load_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "forecast_load_conn");
+
+    if(!db.isOpen())
+    {
+        ErrorMessage("Отсутствует подключение к локальной базе данных");
+        return false;
+    }
+
+    QSqlQuery query(db);
 
     QString query_text = "SELECT city, country FROM ForecastWeather WHERE city = '" + city + "'";
     if(!query.exec(std::move(query_text)))
     {
         ErrorMessage("Не удалось загрузить последний запрос: " + query.lastError().text());
+        db.close();
         return false;
     }
 
@@ -234,6 +281,7 @@ bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector
         if(!query.next())
         {
             ErrorMessage("Локальные данные отсутствуют");
+            db.close();
             return false;
         }
     }
@@ -248,18 +296,29 @@ bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector
 
         if(!TryLoadForecastdays(forecast))
         {
+            db.close();
             return false;
         }
 
         w_collector.SetForecast(std::move(forecast));
     }
 
+    db.close();
     return true;
 }
 
-bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast)
+bool CachingService::TryLoadForecastdays(ForecastWeather& forecast)
 {
-    QSqlQuery query;
+    QSqlDatabase::removeDatabase("forecast_load_conn");
+    QSqlDatabase db = ConnectToDatabase(db_name_, "forecast_days_load_conn");
+
+    if(!db.isOpen())
+    {
+        ErrorMessage("Отсутствует подключение к локальной базе данных");
+        return false;
+    }
+
+    QSqlQuery query(db);
     QString query_text = "SELECT avg_t, min_t, max_t, "
                          "weather_condition, day, month, year "
                          "FROM ForecastDays WHERE city = '" + forecast.city_ + "'";
@@ -267,6 +326,7 @@ bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast)
     if(!query.exec(std::move(query_text)))
     {
         ErrorMessage("Не удалось загрузить forecast_days: " + query.lastError().text());
+        db.close();
         return false;
     }
 
@@ -287,17 +347,18 @@ bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast)
         forecast.forecast_days_.push_back(std::move(day));
     }
 
+    db.close();
     return true;
 }
 
-QString SqlCachingService::GetDBName() const
+QString CachingService::GetDBName() const
 {
     return db_name_;
 }
 
-bool SqlCachingService::TryCleanCache()
+bool CachingService::TryCleanCache()
 {
-    if(!SqlCacheCleaner::TryCleanCache(std::ref(db_name_), &mutex))
+    if(!SqlCacheCleaner::TryCleanCache(std::ref(db_name_)))
     {
         return false;
     }

@@ -4,7 +4,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(std::make_unique<Ui::MainWindow>())
-    , caching_service_(std::make_unique<SqlCachingService>())
+    , caching_service_(std::make_unique<CachingService>())
     , api_forecast_service_(std::make_unique<APIForecastService>(this))
 {
     ui->setupUi(this);
@@ -15,7 +15,6 @@ MainWindow::MainWindow(QWidget *parent)
     HideDaysCountBar();
     this->setWindowTitle("Прогноз погоды");
     caching_service_->TryCleanCache();
-    caching_service_->TryConnectToDataBase();
 }
 
 MainWindow::~MainWindow()
@@ -48,6 +47,8 @@ void MainWindow::showResultButtonClicked()
             results_.reset();
             return;
         }
+
+        caching_service_->TryCacheLastRequest(request_type, w_collector);
         break;
 
     case false:
