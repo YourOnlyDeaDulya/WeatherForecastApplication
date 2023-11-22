@@ -19,7 +19,18 @@ bool SqlCachingService::TryConnectToDataBase()
 {
     db_ = QSqlDatabase::addDatabase("QSQLITE");
     db_.setDatabaseName("./../../sqlite_db/weather_request.db");
-    return db_.open();
+    if(!db_.open())
+    {
+        return false;
+    }
+
+    QSqlQuery query;
+    if(!query.exec("PRAGMA foreign_keys = ON;"))
+    {
+        ErrorMessage("Не удалось установить pragma-расширение" + query.lastError().text());
+    }
+
+    return true;
 }
 
 bool SqlCachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const
@@ -47,29 +58,33 @@ bool SqlCachingService::TryCacheLastRequest(INFO_TYPE type, const WeatherCollect
 bool SqlCachingService::TryCacheCurrent(const WeatherCollector& w_collector)
 {
     QSqlQuery query;
-    if(!query.exec("DELETE FROM CurrentWeather"))
-    {
-        ErrorMessage("Не удалось очистить кэш: " + query.lastError().text());
-        return false;
-    }
 
     const auto current = w_collector.GetCurrentWeather();
 
     QString query_text = "INSERT INTO CurrentWeather (city, country, day, month, year, "
                          "hour, minute, weather_condition, celcium_t, feels_like, is_day, request_date) VALUES(";
     query_text
-    +="'" + current.city_ + "', "
-    + "'" + current.country_ + "', "
-    + QString::number(current.date_.day_) + ", "
-    + QString::number(current.date_.month_) + ", "
-    + QString::number(current.date_.year_) + ", "
-    + QString::number(current.hourly_weather_info_.time_.hour_) + ", "
-    + QString::number(current.hourly_weather_info_.time_.minute_) + ", "
-    + "'" + current.hourly_weather_info_.weather_condition_ + "', "
-    + QString::number(current.hourly_weather_info_.celcium_t_) + ", "
-    + QString::number(current.hourly_weather_info_.feels_like_t_) + ", "
-    + QString::number(current.hourly_weather_info_.is_day_) + ", "
-    + "'" + GetCurrentDate() + "')";
+        +="'" + current.city_ + "', "
+        + "'" + current.country_ + "', "
+        + QString::number(current.date_.day_) + ", "
+        + QString::number(current.date_.month_) + ", "
+        + QString::number(current.date_.year_) + ", "
+        + QString::number(current.hourly_weather_info_.time_.hour_) + ", "
+        + QString::number(current.hourly_weather_info_.time_.minute_) + ", "
+        + "'" + current.hourly_weather_info_.weather_condition_ + "', "
+        + QString::number(current.hourly_weather_info_.celcium_t_) + ", "
+        + QString::number(current.hourly_weather_info_.feels_like_t_) + ", "
+        + QString::number(current.hourly_weather_info_.is_day_) + ", "
+        + "'" + GetCurrentDate() + "') ";
+
+    query_text
+        += "ON CONFLICT (city) DO UPDATE SET "
+        "day = excluded.day, month = excluded.month,"
+        "year = excluded.year, hour = excluded.hour,"
+        "hour = excluded.hour, minute = excluded.minute,"
+        "weather_condition = excluded.weather_condition,"
+        "celcium_t = excluded.celcium_t, feels_like = excluded.feels_like,"
+        "is_day = excluded.is_day, request_date = excluded.request_date";
 
     if(!query.exec(std::move(query_text)))
     {
@@ -82,20 +97,21 @@ bool SqlCachingService::TryCacheCurrent(const WeatherCollector& w_collector)
 
 bool SqlCachingService::TryCacheForecast(const WeatherCollector& w_collector)
 {
+    const auto forecast = w_collector.GerForecastWeather();
+
     QSqlQuery query;
-    if(!query.exec("DELETE FROM ForecastWeather"))
+    if(!query.exec("DELETE FROM ForecastWeather WHERE city = '"
+                    + forecast.city_ + "'"))
     {
         ErrorMessage("Не удалось очистить кэш: " + query.lastError().text());
         return false;
     }
 
-    const auto forecast = w_collector.GerForecastWeather();
-
-
     QString query_text = "INSERT INTO ForecastWeather (city, country, request_date) VALUES (";
-    query_text += "'" + forecast.city_ + "', "
-                + "'" + forecast.country_ + "', "
-                + "'" + GetCurrentDate() + "')";
+    query_text
+        += "'" + forecast.city_ + "', "
+        + "'" + forecast.country_ + "', "
+        + "'" + GetCurrentDate() + "')";
 
     if(!query.exec(std::move(query_text)) || !TryCacheForecastDays(forecast))
     {
@@ -109,27 +125,21 @@ bool SqlCachingService::TryCacheForecast(const WeatherCollector& w_collector)
 bool SqlCachingService::TryCacheForecastDays(const ForecastWeather& forecast)
 {
     QSqlQuery query;
-    if(!query.exec("DELETE FROM ForecastDays"))
-    {
-        ErrorMessage("Не удалось очистить кэш: " + query.lastError().text());
-        return false;
-    }
-
     const auto& days = forecast.forecast_days_;
     for(const auto& day : days)
     {
         QString query_text = "INSERT INTO ForecastDays (avg_t, min_t, max_t, "
                              "weather_condition, day, month, year, request_date, city) VALUES (";
         query_text
-        += QString::number(day.avg_t) + ", "
-        + QString::number(day.min_max_t_.first) + ", "
-        + QString::number(day.min_max_t_.second) + ", '"
-        + day.weather_condition_ + "', "
-        + QString::number(day.date_.day_) + ", "
-        + QString::number(day.date_.month_) + ", "
-        + QString::number(day.date_.year_) + ", '"
-        + GetCurrentDate() + "', '"
-        + forecast.city_ + "')";
+            += QString::number(day.avg_t) + ", "
+            + QString::number(day.min_max_t_.first) + ", "
+            + QString::number(day.min_max_t_.second) + ", '"
+            + day.weather_condition_ + "', "
+            + QString::number(day.date_.day_) + ", "
+            + QString::number(day.date_.month_) + ", "
+            + QString::number(day.date_.year_) + ", '"
+            + GetCurrentDate() + "', '"
+            + forecast.city_ + "')";
 
         if(!query.exec(std::move(query_text)))
         {
