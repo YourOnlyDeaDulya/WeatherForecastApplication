@@ -11,14 +11,14 @@ QString GetCurrentDate()
     return QString::number(year) + "-" + QString::number(month) + "-" + QString::number(day);
 }
 
-SqlCachingService::SqlCachingService()
+SqlCachingService::SqlCachingService() : mutex(std::make_unique<QMutex>())
 {
 }
 
 bool SqlCachingService::TryConnectToDataBase()
 {
     db_ = QSqlDatabase::addDatabase("QSQLITE");
-    db_.setDatabaseName("./../../sqlite_db/weather_request.db");
+    db_.setDatabaseName(db_name_);
     if(!db_.open())
     {
         return false;
@@ -254,6 +254,21 @@ bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast) const
         day.date_.year_ = query.value(6).toInt();
 
         forecast.forecast_days_.push_back(std::move(day));
+    }
+
+    return true;
+}
+
+QString SqlCachingService::GetDBName() const
+{
+    return db_name_;
+}
+
+bool SqlCachingService::TryCleanCache()
+{
+    if(!std::async(SqlCacheCleaner::TryCleanCache, db_name_, mutex.get()).get())
+    {
+        return false;
     }
 
     return true;

@@ -4,9 +4,12 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
+
 #include "weatherdatacollector.h"
 #include "request_info_types.h"
 #include "errormessage.h"
+#include "sqlcachecleaner.h"
+
 #include <QDate>
 #include <QMutex>
 #include <QMutexLocker>
@@ -20,6 +23,8 @@ public:
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) = 0;
     virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const = 0;
     virtual bool TryConnectToDataBase() = 0;
+    virtual QString GetDBName() const = 0;
+    virtual bool TryCleanCache() = 0;
     virtual ~SqlCachingServiceInterface() = default;
 };
 
@@ -31,9 +36,13 @@ public:
     virtual bool TryConnectToDataBase() override; //DB
     virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const override;
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) override;
+    virtual QString GetDBName() const override;
+    virtual bool TryCleanCache() override;
 
 private:
     QSqlDatabase db_;
+    std::unique_ptr<QMutex> mutex;
+    const QString db_name_ = "./../../sqlite_db/weather_request.db";
 
     bool TryCacheCurrent(const WeatherCollector& w_collector);
     bool TryCacheForecast(const WeatherCollector& w_collector);
@@ -42,8 +51,6 @@ private:
     bool TryLoadLastForecastRequest(WeatherCollector& w_collector) const;
     bool TryLoadLastCurrentRequest(WeatherCollector& w_collector) const;
     bool TryLoadForecastdays(ForecastWeather& forecast) const;
-
-
 
     const QMap<INFO_TYPE, std::function<bool(const WeatherCollector&)>> request_type_to_cache_method_
         {

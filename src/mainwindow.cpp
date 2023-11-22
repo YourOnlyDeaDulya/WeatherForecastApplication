@@ -15,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     HideDaysCountBar();
     this->setWindowTitle("Прогноз погоды");
     caching_service_->TryConnectToDataBase();
+    caching_service_->TryCleanCache();
 }
 
 MainWindow::~MainWindow()
