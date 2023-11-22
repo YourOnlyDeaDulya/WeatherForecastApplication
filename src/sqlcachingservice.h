@@ -13,7 +13,7 @@
 #include <QDate>
 #include <QMutex>
 #include <QMutexLocker>
-#include <future>
+#include <thread>
 
 QString GetCurrentDate();
 
@@ -21,7 +21,7 @@ class SqlCachingServiceInterface
 {
 public:
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) = 0;
-    virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const = 0;
+    virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const = 0;
     virtual bool TryConnectToDataBase() = 0;
     virtual QString GetDBName() const = 0;
     virtual bool TryCleanCache() = 0;
@@ -34,23 +34,23 @@ public:
     SqlCachingService();
 
     virtual bool TryConnectToDataBase() override; //DB
-    virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const override;
+    virtual bool TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const override;
     virtual bool TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector) override;
     virtual QString GetDBName() const override;
     virtual bool TryCleanCache() override;
 
 private:
     QSqlDatabase db_;
-    std::unique_ptr<QMutex> mutex;
+    QMutex mutex;
     const QString db_name_ = "./../../sqlite_db/weather_request.db";
 
     bool TryCacheCurrent(const WeatherCollector& w_collector);
     bool TryCacheForecast(const WeatherCollector& w_collector);
     bool TryCacheForecastDays(const ForecastWeather& forecast);
 
-    bool TryLoadLastForecastRequest(WeatherCollector& w_collector) const;
-    bool TryLoadLastCurrentRequest(WeatherCollector& w_collector) const;
-    bool TryLoadForecastdays(ForecastWeather& forecast) const;
+    bool TryLoadLastForecastRequest(WeatherCollector& w_collector, const QString& city);
+    bool TryLoadLastCurrentRequest(WeatherCollector& w_collector, const QString& city);
+    bool TryLoadForecastdays(ForecastWeather& forecast);
 
     const QMap<INFO_TYPE, std::function<bool(const WeatherCollector&)>> request_type_to_cache_method_
         {
@@ -58,10 +58,10 @@ private:
             { INFO_TYPE::FORECAST, [&](const WeatherCollector& w_collector){ return TryCacheForecast(w_collector); }}
         };
 
-    const QMap<INFO_TYPE, std::function<bool(WeatherCollector&)>> request_type_to_load_method_
+    const QMap<INFO_TYPE, std::function<bool(WeatherCollector&, const QString&)>> request_type_to_load_method_
         {
-            { INFO_TYPE::CURRENT, [&](WeatherCollector& w_collector){ return TryLoadLastCurrentRequest(w_collector); }},
-            { INFO_TYPE::FORECAST, [&](WeatherCollector& w_collector){ return TryLoadLastForecastRequest(w_collector); }}
+            { INFO_TYPE::CURRENT, [&](WeatherCollector& w_collector, const QString& city){ return TryLoadLastCurrentRequest(w_collector, city); }},
+            { INFO_TYPE::FORECAST, [&](WeatherCollector& w_collector, const QString& city){ return TryLoadLastForecastRequest(w_collector, city); }}
         };
 };
 

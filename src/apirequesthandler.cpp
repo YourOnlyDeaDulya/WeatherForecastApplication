@@ -121,7 +121,7 @@ bool APIForecastService::CheckForInternetConnection(QWidget *parent) const
     if (!connected)
     {
         sock->abort();
-        ErrorMessage("Отсутствует интернет-соединение. Будет показан последний запрос");
+        ErrorMessage("Отсутствует интернет-соединение. Будет показана локальная информация");
         return false;
     }
     sock->close();

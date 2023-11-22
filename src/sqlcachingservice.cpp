@@ -11,7 +11,7 @@ QString GetCurrentDate()
     return QString::number(year) + "-" + QString::number(month) + "-" + QString::number(day);
 }
 
-SqlCachingService::SqlCachingService() : mutex(std::make_unique<QMutex>())
+SqlCachingService::SqlCachingService()
 {
 }
 
@@ -24,7 +24,7 @@ bool SqlCachingService::TryConnectToDataBase()
         return false;
     }
 
-    QSqlQuery query;
+    QSqlQuery query(db_);
     if(!query.exec("PRAGMA foreign_keys = ON;"))
     {
         ErrorMessage("Не удалось установить pragma-расширение" + query.lastError().text());
@@ -33,7 +33,7 @@ bool SqlCachingService::TryConnectToDataBase()
     return true;
 }
 
-bool SqlCachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector) const
+bool SqlCachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_collector, const QString& city) const
 {
     if(!db_.isOpen())
     {
@@ -41,7 +41,7 @@ bool SqlCachingService::TryLoadLastRequest(INFO_TYPE type, WeatherCollector& w_c
         return false;
     }
 
-    return request_type_to_load_method_[type](w_collector);
+    return request_type_to_load_method_[type](w_collector, city);
 }
 
 bool SqlCachingService::TryCacheLastRequest(INFO_TYPE type, const WeatherCollector& w_collector)
@@ -151,18 +151,36 @@ bool SqlCachingService::TryCacheForecastDays(const ForecastWeather& forecast)
     return true;
 }
 
-bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector) const
+bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector, const QString& city)
 {
     QSqlQuery query;
     QString query_text = "SELECT city, country, day, month, year, hour, minute, "
                          "weather_condition, celcium_t, feels_like, is_day "
-                         "FROM CurrentWeather";
+                         "FROM CurrentWeather WHERE city = '" + city + "'";
 
     if(!query.exec(std::move(query_text)))
     {
         ErrorMessage("Не удалось загрузить последний запрос: " + query.lastError().text());
         return false;
     }
+
+    if(!query.next())
+    {
+        ErrorMessage("Информации по данному городу нет. Будет показан последний запрос");
+
+        query_text = "SELECT city, country, day, month, year, hour, minute, "
+                             "weather_condition, celcium_t, feels_like, is_day "
+                             "FROM CurrentWeather ORDER BY city DESC LIMIT 1;";
+        query.exec(std::move(query_text));
+
+        if(!query.next())
+        {
+            ErrorMessage("Локальные данные отсутствуют");
+            return false;
+        }
+    }
+
+    query.previous();
 
     while(query.next())
     {
@@ -192,21 +210,35 @@ bool SqlCachingService::TryLoadLastCurrentRequest(WeatherCollector& w_collector)
         w_collector.SetCurrent(std::move(current));
     }
 
-    //results_->setAnswer(w_collector);
     return true;
 }
 
-bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector) const
+bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector, const QString& city)
 {
     QSqlQuery query;
-    QString query_text = "SELECT city, country FROM ForecastWeather";
 
+    QString query_text = "SELECT city, country FROM ForecastWeather WHERE city = '" + city + "'";
     if(!query.exec(std::move(query_text)))
     {
         ErrorMessage("Не удалось загрузить последний запрос: " + query.lastError().text());
         return false;
     }
 
+    if(!query.next())
+    {
+        ErrorMessage("Информации по данному городу нет. Будет показан последний запрос");
+
+        query_text = "SELECT city, country FROM ForecastWeather LIMIT 1";
+        query.exec(std::move(query_text));
+
+        if(!query.next())
+        {
+            ErrorMessage("Локальные данные отсутствуют");
+            return false;
+        }
+    }
+
+    query.previous();
 
     while(query.next())
     {
@@ -222,16 +254,15 @@ bool SqlCachingService::TryLoadLastForecastRequest(WeatherCollector& w_collector
         w_collector.SetForecast(std::move(forecast));
     }
 
-        //results_->setAnswer(w_collector);
     return true;
 }
 
-bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast) const
+bool SqlCachingService::TryLoadForecastdays(ForecastWeather& forecast)
 {
     QSqlQuery query;
     QString query_text = "SELECT avg_t, min_t, max_t, "
                          "weather_condition, day, month, year "
-                         "FROM ForecastDays";
+                         "FROM ForecastDays WHERE city = '" + forecast.city_ + "'";
 
     if(!query.exec(std::move(query_text)))
     {
@@ -266,7 +297,7 @@ QString SqlCachingService::GetDBName() const
 
 bool SqlCachingService::TryCleanCache()
 {
-    if(!std::async(SqlCacheCleaner::TryCleanCache, db_name_, mutex.get()).get())
+    if(!SqlCacheCleaner::TryCleanCache(std::ref(db_name_), &mutex))
     {
         return false;
     }

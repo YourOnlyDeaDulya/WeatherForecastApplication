@@ -14,8 +14,8 @@ MainWindow::MainWindow(QWidget *parent)
                      this, &MainWindow::daysCountInput_edited);
     HideDaysCountBar();
     this->setWindowTitle("Прогноз погоды");
-    caching_service_->TryConnectToDataBase();
     caching_service_->TryCleanCache();
+    caching_service_->TryConnectToDataBase();
 }
 
 MainWindow::~MainWindow()
@@ -40,20 +40,23 @@ void MainWindow::showResultButtonClicked()
 
     results_.reset(request_type_to_window_[request_type](this));
 
-    if(!api_forecast_service_->CheckForInternetConnection(this)
-         && !caching_service_->TryLoadLastRequest(request_type, w_collector))
+    switch(api_forecast_service_->CheckForInternetConnection(this))
     {
-        results_.reset();
-        return;
-    }
-    else if(TryMakeAPIRequest(request_type, w_collector))
-    {
-        caching_service_->TryCacheLastRequest(request_type, w_collector);
-    }
-    else
-    {
-        results_.reset();
-        return;
+    case true:
+        if(!TryMakeAPIRequest(request_type, w_collector))
+        {
+            results_.reset();
+            return;
+        }
+        break;
+
+    case false:
+        if(!caching_service_->TryLoadLastRequest(request_type, w_collector, ui->cityLineEdit->text()))
+        {
+            results_.reset();
+            return;
+        }
+        break;
     }
 
     results_->setAnswer(std::move(w_collector));
